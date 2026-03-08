@@ -492,7 +492,13 @@ ui-library/
 │   ├── app/
 │   │   ├── globals.css          # Tailwind CSS v4 設定（@import "tailwindcss" + @theme）
 │   │   ├── layout.tsx           # ルートレイアウト
-│   │   └── page.tsx             # コンポーネントカタログのトップページ
+│   │   ├── page.tsx             # / → /playground へリダイレクト
+│   │   └── playground/
+│   │       ├── page.tsx         # プレイグラウンドトップ（ショーケース + デモ一覧）
+│   │       ├── layout.tsx       # プレイグラウンド用レイアウト
+│   │       ├── _components/     # プレイグラウンド固有コンポーネント
+│   │       ├── components/      # ベースコンポーネントのショーケース
+│   │       └── demos/           # 組み合わせデモ（Claude Code / Cursor で生成）
 │   ├── components/
 │   │   ├── ui/                  # shadcn/ui ベースコンポーネント（自動生成）
 │   │   ├── layouts/
@@ -510,7 +516,9 @@ ui-library/
         └── 001-why-shadcn.md
 ```
 
-**CATALOG.md について**：手動での更新漏れを防ぐため、将来的にはスクリプトによる自動生成を推奨する。主たるカタログは Next.js のカタログページ（`src/app/page.tsx`）とし、`CATALOG.md` は補助的な参照用とする。
+**CATALOG.md について**：手動での更新漏れを防ぐため、将来的にはスクリプトによる自動生成を推奨する。主たるカタログはプレイグラウンド（`/playground`）のコンポーネントショーケースとし、`CATALOG.md` は補助的な参照用とする。
+
+**ページ構成**：`/`（`src/app/page.tsx`）は `/playground` にリダイレクトする。プレイグラウンドがアプリケーションのメイン画面として機能する。
 
 ## コーディング規約
 

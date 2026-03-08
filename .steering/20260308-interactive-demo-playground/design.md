@@ -61,6 +61,48 @@
 - Git でバージョン管理可能
 - ディレクトリ構造で整理・分類
 
+### Next.js プロジェクト初期化オプション
+
+```
+pnpm create next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --turbopack
+```
+
+| 項目 | 値 | 備考 |
+|---|---|---|
+| TypeScript | Yes（strict） | CLAUDE.md 指定 |
+| Tailwind CSS | Yes（v4） | CLAUDE.md 指定 |
+| ESLint | Yes | CLAUDE.md 指定 |
+| App Router | Yes | CLAUDE.md 指定 |
+| `src/` ディレクトリ | Yes | CLAUDE.md 指定 |
+| import alias | `@/*` | CLAUDE.md 指定 |
+| Turbopack | Yes | dev server の高速化のため採用 |
+
+### shadcn/ui 初期化オプション
+
+```
+npx shadcn@latest init --defaults
+```
+
+`--defaults` フラグによりデフォルトのシンプルな設定が適用される：
+- Style: Default（New York ではない）
+- Base color: Slate
+- CSS variables: Yes
+
+### ページ構成: `/` と `/playground` の関係
+
+`src/app/page.tsx`（`/`）は `/playground` にリダイレクトする。現段階ではプレイグラウンドがアプリケーションの主要な機能であり、別途ランディングページを設ける必要がないため。
+
+```tsx
+// src/app/page.tsx
+import { redirect } from "next/navigation";
+
+export default function Home() {
+  redirect("/playground");
+}
+```
+
+将来的にランディングページが必要になった場合は、`page.tsx` を差し替える。
+
 ## ディレクトリ設計
 
 ### 2層構造: コンポーネントショーケース + 組み合わせデモ
