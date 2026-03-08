@@ -341,6 +341,54 @@ Cursor Settings > MCP Servers から追加、もしくは `.cursor/mcp.json` に
 → get_block({ blockName: "dashboard-01" })
 ```
 
+## プレイグラウンドのデモ生成ワークフロー
+
+プレイグラウンドの組み合わせデモは、Claude Code / Cursor で以下の手順で生成する。
+
+### デモ生成手順
+
+1. **MCP で使用コンポーネントの最新仕様を確認する**
+   ```
+   → get_component({ componentName: "card" })
+   → get_component({ componentName: "button" })
+   ```
+
+2. **デモページを `playground/demos/[slug]/page.tsx` に作成する**
+   - ファイル名は kebab-case のスラッグ（例: `stat-cards`, `login-form`）
+   - `"use client"` ディレクティブは状態管理・イベントハンドラが必要な場合のみ付与
+   - サンプルデータはファイル内にハードコード（DB やシードファイルは不要）
+
+3. **JSDoc コメントでメタデータを記載する**
+   ```tsx
+   /**
+    * デモ: [デモタイトル]
+    *
+    * 使用コンポーネント: [使用した shadcn/ui コンポーネント一覧]
+    * 作成日: YYYY-MM-DD
+    */
+   ```
+
+4. **Next.js ホットリロードで即座に確認する**
+   - `pnpm dev` 実行中であれば、ファイル保存後に `/playground/demos/[slug]` でプレビュー可能
+   - プレイグラウンドトップページ（`/playground`）にも自動的に表示される
+
+### デモの指示テンプレート
+
+```
+以下のデモページを作成してください。
+
+スラッグ: [kebab-case のスラッグ]
+タイトル: [デモのタイトル]
+使用コンポーネント: [Button, Card, Input 等]
+説明: [1-2文でデモの内容を説明]
+
+レイアウト:
+- [UIのレイアウトを箇条書きで]
+
+インタラクション:
+- [ユーザー操作とその結果（あれば）]
+```
+
 ## コンポーネント設計原則
 
 ### 1. 分類体系
