@@ -260,3 +260,400 @@ graph TD
 - 共通のデザインシステム（Tailwind CSS）を使用して統一感を保つ
 - セキュリティを考慮したコーディング（XSS対策、入力バリデーションなど）
 - 図表は必要最小限に留め、メンテナンスコストを抑える
+
+## 技術スタック
+
+- **フレームワーク**: Next.js (App Router)
+- **言語**: TypeScript（厳密モード）
+- **UIベース**: shadcn/ui（Radix UI プリミティブ）
+- **スタイリング**: Tailwind CSS v4
+  - 設定は `src/app/globals.css` 内の `@import "tailwindcss"` + `@theme` ディレクティブで管理（`tailwind.config.ts` は不要）
+  - `cn()` ヘルパーで使用する `tailwind-merge` は v3 系を使用し、Tailwind v4 のクラス名との互換性を確認すること
+- **ドラッグ&ドロップ**: @dnd-kit/core, @dnd-kit/sortable（並べ替え機能が必要な場合）
+- **アニメーション**: motion（旧 framer-motion。`npm install motion` でインストール）
+- **パッケージマネージャ**: pnpm
+
+## 環境要件
+
+### ランタイム・ツール
+
+- **Node.js**: v20 以上
+- **pnpm**: v9 以上
+
+### WSL / devcontainer 環境
+
+- ファイルウォッチャーの制限に注意（`CHOKIDAR_USEPOLLING=true` が必要な場合あり）
+- MCP サーバーはホスト側で動作する場合とコンテナ内で動作する場合がある。`.mcp.json` のパス設定がホスト / コンテナで異なる点に注意
+- devcontainer 内で `pnpm dev` を実行する場合、ポートフォワーディングの設定を確認すること
+
+## shadcn/ui MCP サーバーの活用
+
+このプロジェクトでは shadcn/ui MCP サーバーを有効にしている。コンポーネントを作成・修正する際は、必ず以下の手順で活用すること。
+
+### MCP サーバーの設定
+
+#### Claude Code の場合
+
+`.mcp.json` をプロジェクトルートに配置：
+
+```json
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/shadcn-mcp-server"]
+    }
+  }
+}
+```
+
+#### Cursor の場合
+
+Cursor Settings > MCP Servers から追加、もしくは `.cursor/mcp.json` に配置：
+
+```json
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/shadcn-mcp-server"]
+    }
+  }
+}
+```
+
+### MCP サーバーでやるべきこと
+
+1. **コンポーネント作成前に必ず最新仕様を確認する**：新しいコンポーネントを作る際は、まず MCP サーバー経由で shadcn/ui の該当コンポーネントのソースコード・props 定義・使用例を取得し、それに基づいてコードを書くこと。記憶やキャッシュされた知識に頼らない。
+2. **ブロック（完成済みUI構成）を起点にする**：ダッシュボード、ログインフォームなどの大きな単位は、shadcn/ui のブロックを取得して、それをカスタマイズする形で進める。ゼロから組み立てない。
+3. **依存関係を正確に把握する**：MCP サーバーから取得したメタデータ（dependencies, registryDependencies）を確認し、必要なパッケージが漏れなくインストールされていることを保証する。
+
+### MCP ツールの使い方（参考）
+
+```
+# 利用可能なコンポーネント一覧を確認
+→ list_components
+
+# 特定コンポーネントのソースコードと仕様を取得
+→ get_component({ componentName: "accordion" })
+
+# ブロック（完成済みUI構成）を取得
+→ get_block({ blockName: "dashboard-01" })
+```
+
+## コンポーネント設計原則
+
+### 1. 分類体系
+
+コンポーネントは以下のカテゴリに分類する。新しいコンポーネントを追加する際は、必ずいずれかに配置すること。
+
+```
+src/components/
+├── layouts/           # ページ全体の構造（サイドバー付きレイアウト、ダッシュボードシェルなど）
+├── navigation/        # ナビゲーション系（サイドバー、ブレッドクラム、タブなど）
+├── data-display/      # データ表示系（カード、テーブル、リスト、統計表示など）
+├── data-input/        # データ入力系（フォーム、フィルター、検索バーなど）
+├── feedback/          # フィードバック系（トースト、モーダル、プログレスバーなど）
+├── interactive/       # インタラクティブ系（ドラッグ&ドロップ、ソート可能リストなど）
+└── ui/                # shadcn/ui のベースコンポーネント（shadcn add で追加されるもの）
+```
+
+### 2. コンポーネント構成ルール
+
+各カスタムコンポーネント（`ui/` 以外）は、以下の構成で作成する。
+
+#### 初期段階（現在）
+
+```
+src/components/[category]/[ComponentName]/
+├── [ComponentName].tsx          # メインのコンポーネント実装
+├── [ComponentName].test.tsx     # テスト（基本的な描画テストとインタラクションテスト）
+└── types.ts                     # 型定義（props が複雑な場合）
+```
+
+- コンポーネントの設計意図・使い方は JSDoc コメントで記載する
+- Next.js カタログページでプレビューを確認する
+
+#### Storybook 導入後（将来）
+
+```
+src/components/[category]/[ComponentName]/
+├── [ComponentName].tsx          # メインのコンポーネント実装
+├── [ComponentName].stories.tsx  # 使用例・バリエーション（Storybook 形式）
+├── [ComponentName].test.tsx     # テスト（基本的な描画テストとインタラクションテスト）
+├── types.ts                     # 型定義（props が複雑な場合）
+└── README.md                    # このコンポーネントの設計意図・使い方・制約
+```
+
+- README.md は成熟したコンポーネント（安定版・複数プロジェクトで再利用実績あり）に対して作成する
+- 初期段階のコンポーネントは JSDoc コメントで代替可能
+
+### 3. 設計上の必須ルール
+
+**Props 設計**：すべてのカスタムコンポーネントは、必須 props なしでもデフォルト表示できるようにする（default props またはオプショナル化）。これにより、テスト環境やカタログページで即座にレンダリングできる。
+
+**合成パターン（Composition）を優先する**：shadcn/ui の設計思想に従い、コンポーネントは小さなパーツの組み合わせで構成する。1つの巨大な props オブジェクトに全設定を詰め込まない。
+
+```tsx
+// ✅ 良い例：合成パターン
+<SortableCardList>
+  <SortableCard id="1">
+    <CardHeader>タイトル</CardHeader>
+    <CardContent>内容</CardContent>
+  </SortableCard>
+</SortableCardList>
+
+// ❌ 悪い例：設定オブジェクト丸投げ
+<SortableCardList
+  items={[{ id: "1", title: "タイトル", content: "内容" }]}
+  renderItem={(item) => <div>{item.title}</div>}
+/>
+```
+
+**アクセシビリティ**：キーボード操作（Tab, Enter, Escape, Arrow keys）とスクリーンリーダー対応（aria-label, role, aria-expanded 等）は必須。shadcn/ui のベースコンポーネントがこれを提供している場合は、それを壊さないこと。
+
+**レスポンシブ対応**：デスクトップファーストで設計するが、Tailwind のレスポンシブプレフィックス（`md:`, `lg:`）を使って、最低限タブレットサイズまで対応する。
+
+## コンポーネント作成ワークフロー
+
+新しいコンポーネントを追加する際は、以下の手順で進めること。
+
+### ステップ 1：要件の構造化
+
+ユーザーからの要件を、以下のフォーマットで構造化してから作業を開始する。
+
+```markdown
+## コンポーネント要件
+
+**名前**: SortableAccordion
+**カテゴリ**: interactive
+**目的**: アコーディオンの項目をドラッグ&ドロップで並べ替え可能にする
+
+**構造**:
+- 親コンテナが複数のアコーディオン項目を保持する
+- 各項目はヘッダー（常時表示）とコンテンツ（展開時表示）を持つ
+- ヘッダーの左端にドラッグハンドルを配置する
+
+**振る舞い**:
+- ドラッグハンドルを掴んで上下に移動すると、項目の順序が入れ替わる
+- ドラッグ中も他の項目のアコーディオン開閉は可能
+- 並べ替え完了時に onReorder コールバックが発火し、新しい順序の ID 配列を返す
+
+**shadcn/ui ベース**: Accordion, Collapsible
+**追加ライブラリ**: @dnd-kit/core, @dnd-kit/sortable
+```
+
+### ステップ 2：shadcn/ui の最新仕様を MCP で確認
+
+上記の要件で必要な shadcn/ui コンポーネントの最新ソースを MCP サーバーから取得し、props・内部構造を把握する。
+
+### ステップ 3：実装
+
+取得した仕様に基づいて実装する。実装中は以下を守ること。
+
+- `"use client"` ディレクティブが必要かどうか判断する（状態管理・イベントハンドラがあれば必要）
+- shadcn/ui のベースコンポーネントは `@/components/ui/` からインポートする
+- Tailwind CSS のユーティリティクラスで装飾する。カスタム CSS は原則使わない
+- `cn()` ヘルパー（`@/lib/utils`）でクラス名を結合する
+
+### ステップ 4：動作確認とコミット
+
+- `pnpm build` でビルドエラーがないことを確認
+- `pnpm lint` で lint エラーがないことを確認
+- コミットメッセージは以下の規約に従う
+
+### コミットメッセージ規約
+
+```
+feat(category): ComponentName - 新規コンポーネント追加
+fix(category): ComponentName - バグ修正
+refactor(category): ComponentName - リファクタリング
+test(category): ComponentName - テスト追加・修正
+docs: ドキュメント更新
+chore: ビルド設定、依存関係の更新
+```
+
+**例：**
+- `feat(interactive): SortableAccordion - ドラッグ&ドロップ対応アコーディオンを追加`
+- `fix(data-display): StatCard - レスポンシブ表示の崩れを修正`
+- `docs: CATALOG.md を更新`
+- `chore: @dnd-kit/core を v7.0.0 に更新`
+
+## リポジトリ全体構造
+
+```
+ui-library/
+├── .mcp.json                    # shadcn/ui MCP サーバー設定（Claude Code 用）
+├── .cursor/
+│   ├── mcp.json                 # shadcn/ui MCP サーバー設定（Cursor 用）
+│   └── rules/
+│       └── project-memory.mdc   # Cursor 用プロジェクトルール（CLAUDE.md と同期）
+├── CLAUDE.md                    # ← このファイル
+├── components.json              # shadcn/ui 設定
+├── package.json
+├── tsconfig.json
+├── next.config.ts
+├── src/
+│   ├── app/
+│   │   ├── globals.css          # Tailwind CSS v4 設定（@import "tailwindcss" + @theme）
+│   │   ├── layout.tsx           # ルートレイアウト
+│   │   └── page.tsx             # コンポーネントカタログのトップページ
+│   ├── components/
+│   │   ├── ui/                  # shadcn/ui ベースコンポーネント（自動生成）
+│   │   ├── layouts/
+│   │   ├── navigation/
+│   │   ├── data-display/
+│   │   ├── data-input/
+│   │   ├── feedback/
+│   │   └── interactive/
+│   └── lib/
+│       └── utils.ts             # cn() などのユーティリティ
+├── stories/                     # Storybook 設定（将来導入予定）
+└── docs/
+    ├── CATALOG.md               # 全コンポーネントの一覧と状態（自動生成推奨、補助的位置づけ）
+    └── decisions/               # 大きな設計判断の記録
+        └── 001-why-shadcn.md
+```
+
+**CATALOG.md について**：手動での更新漏れを防ぐため、将来的にはスクリプトによる自動生成を推奨する。主たるカタログは Next.js のカタログページ（`src/app/page.tsx`）とし、`CATALOG.md` は補助的な参照用とする。
+
+## コーディング規約
+
+### 命名規則
+
+- コンポーネント名: PascalCase（`SortableCard`, `DashboardLayout`）
+- ファイル名: コンポーネント名と一致（`SortableCard.tsx`）
+- props の型名: `[ComponentName]Props`（`SortableCardProps`）
+- イベントハンドラ props: `on` + 動詞（`onReorder`, `onDismiss`, `onToggle`）
+- 内部状態: 目的が明確な名前（`isExpanded`, `activeCardId`, `sortOrder`）
+
+### TypeScript
+
+- `any` は使用禁止。不明な型は `unknown` を使い、型ガードで絞り込む
+- コンポーネントの props には必ず型定義をつける
+- ジェネリクスを活用して、データの型をコンポーネント利用側が指定できるようにする
+
+```tsx
+// 良い例：ジェネリックなリストコンポーネント
+interface SortableListProps<T> {
+  items: T[];
+  keyExtractor: (item: T) => string;
+  renderItem: (item: T) => React.ReactNode;
+  onReorder?: (items: T[]) => void;
+}
+```
+
+### インポート順序
+
+```tsx
+// 1. React / Next.js
+import { useState, useCallback } from "react";
+import Link from "next/link";
+
+// 2. 外部ライブラリ
+import { useSortable } from "@dnd-kit/sortable";
+import { motion } from "motion/react";
+
+// 3. shadcn/ui ベースコンポーネント
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+// 4. 自作コンポーネント・ユーティリティ
+import { cn } from "@/lib/utils";
+import type { SortableCardProps } from "./types";
+```
+
+**自動化**: インポート順序は ESLint の `import/order` ルール、または `@trivago/prettier-plugin-sort-imports` で自動的に整列させることを推奨する。手動管理は順序違反の温床になるため、プロジェクト初期段階でツールを導入すること。
+
+## テスト戦略
+
+### テストフレームワーク
+
+- **テストランナー**: Vitest
+- **テスティングライブラリ**: React Testing Library
+- **アクセシビリティテスト**: vitest-axe（axe-core ベース）
+
+### テスト粒度
+
+- **レンダリングテスト**: props なしでクラッシュしないことを確認
+- **インタラクションテスト**: 主要な操作（クリック、キーボード）の動作確認
+- **アクセシビリティテスト**: axe-core による自動チェック（WCAG 2.1 AA 違反の検出）
+
+### 方針
+
+- カバレッジ目標は数値で設定しない（テストの有無と質を重視）
+- テストファイルはコンポーネントと同じディレクトリに配置（`[ComponentName].test.tsx`）
+- モックは最小限に留め、可能な限り実際のコンポーネントを使用する
+
+## LLM（Claude）への指示の出し方ガイド
+
+このプロジェクトでは、Claude Code に対して以下の形式で指示を出すと、最も良い結果が得られる。
+
+### 新規コンポーネントの作成
+
+```
+以下の要件でコンポーネントを作成してください。
+
+名前: [コンポーネント名]
+カテゴリ: [layouts | navigation | data-display | data-input | feedback | interactive]
+目的: [1文で何をするコンポーネントか]
+
+構造:
+- [UIの構造を箇条書きで]
+
+振る舞い:
+- [ユーザーインタラクションとその結果を箇条書きで]
+
+shadcn/ui ベース: [使うべき shadcn/ui コンポーネント]
+追加ライブラリ: [必要な外部ライブラリ（あれば）]
+
+参考: [スクリーンショットがあればここで添付]
+```
+
+### 既存コンポーネントの改良
+
+```
+[ComponentName] を以下のように改良してください。
+
+現状の問題:
+- [何が問題か]
+
+期待する振る舞い:
+- [どうなってほしいか]
+
+制約:
+- [変えてはいけない部分、互換性の要件など]
+```
+
+## 品質チェックリスト
+
+コンポーネントをコミットする前に、以下をすべて確認すること。
+
+1. **ビルド**: `pnpm build` がエラーなく通る
+2. **Lint**: `pnpm lint` がエラーなく通る
+3. **型安全**: TypeScript のエラーが 0 件
+4. **デフォルト表示**: props なしでも壊れずにレンダリングされる
+5. **キーボード操作**: Tab で到達可能、Enter/Space で操作可能
+6. **JSDoc**: コンポーネントの概要・主要 props の説明が JSDoc コメントで記載されている
+7. **カタログ**: 新しいコンポーネントがカタログページに反映されている
+
+## よくある判断基準
+
+### 「shadcn/ui にあるコンポーネントをそのまま使うか、カスタムで作るか」
+
+- shadcn/ui にあるものは、まず MCP で最新仕様を確認し、そのまま使う
+- カスタムが必要な場合は、shadcn/ui のコンポーネントを `ui/` にコピーした上で、ラッパーコンポーネントを `interactive/` や `data-display/` に作る
+- `ui/` 内のファイルは直接編集しない（shadcn CLI でのアップデートと衝突するため）
+
+### 「shadcn/ui コンポーネントを更新するとき」
+
+1. `npx shadcn@latest diff` で差分を確認
+2. 差分が許容範囲であれば `npx shadcn@latest add [component] --overwrite`
+3. ラッパーコンポーネント側に影響がないか確認
+4. `pnpm build && pnpm lint` で検証
+
+### 「状態管理をどこに置くか」
+
+- コンポーネント内部の UI 状態（開閉、ホバーなど）：コンポーネント内の useState
+- 親から制御したい状態（選択値、順序など）：props で受け取り、コールバックで通知（Controlled Component パターン）
+- 複数コンポーネント間で共有する状態：React Context または Zustand（必要になった時点で導入）
