@@ -280,11 +280,32 @@ graph TD
 - **Node.js**: v20 以上
 - **pnpm**: v9 以上
 
+### pnpm が PATH にない場合（asdf 環境など）
+
+`pnpm` が単体で見つからない場合（`which pnpm` が空の場合）は、`corepack pnpm` を代わりに使う。
+
+```bash
+corepack pnpm install
+corepack pnpm run dev
+corepack pnpm add パッケージ名
+```
+
+`package.json` の `packageManager` フィールドにより、Corepack がプロジェクト用の pnpm を有効化する。恒久的に `pnpm` を直接使いたい場合は、asdf の pnpm プラグイン（`asdf plugin add pnpm`）か `npm install -g pnpm` を検討する。
+
 ### WSL / devcontainer 環境
 
 - ファイルウォッチャーの制限に注意（`CHOKIDAR_USEPOLLING=true` が必要な場合あり）
 - MCP サーバーはホスト側で動作する場合とコンテナ内で動作する場合がある。`.mcp.json` のパス設定がホスト / コンテナで異なる点に注意
 - devcontainer 内で `pnpm dev` を実行する場合、ポートフォワーディングの設定を確認すること
+
+### WSL 環境で Cursor チャットから npm/npx を実行する場合
+
+WSL 環境では、Cursor チャット（Agent）が実行するコマンドが Windows の npm/npx を呼び出すことがある。asdf で管理している Node.js を使うには、**フルパスで呼び出す**こと。
+
+- **npm**: `/home/tmiyahara/.asdf/shims/npm`
+- **npx**: `/home/tmiyahara/.asdf/shims/npx`
+
+例：`npx shadcn@latest add button` ではなく、`/home/tmiyahara/.asdf/shims/npx shadcn@latest add button` を実行する。MCP サーバーの `command` も同様に asdf の npx フルパスを指定する。
 
 ## shadcn/ui MCP サーバーの活用
 
@@ -294,13 +315,13 @@ graph TD
 
 #### Claude Code の場合
 
-`.mcp.json` をプロジェクトルートに配置：
+`.mcp.json` をプロジェクトルートに配置。WSL 環境では asdf の npx フルパスを指定する：
 
 ```json
 {
   "mcpServers": {
     "shadcn": {
-      "command": "npx",
+      "command": "/home/tmiyahara/.asdf/shims/npx",
       "args": ["-y", "@anthropic-ai/shadcn-mcp-server"]
     }
   }
@@ -309,13 +330,13 @@ graph TD
 
 #### Cursor の場合
 
-Cursor Settings > MCP Servers から追加、もしくは `.cursor/mcp.json` に配置：
+Cursor Settings > MCP Servers から追加、もしくは `.cursor/mcp.json` に配置。WSL 環境では asdf の npx フルパスを指定する：
 
 ```json
 {
   "mcpServers": {
     "shadcn": {
-      "command": "npx",
+      "command": "/home/tmiyahara/.asdf/shims/npx",
       "args": ["-y", "@anthropic-ai/shadcn-mcp-server"]
     }
   }

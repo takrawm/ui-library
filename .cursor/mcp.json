@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "shadcn": {
-      "command": "npx",
+      "command": "/home/tmiyahara/.asdf/shims/npx",
       "args": ["-y", "@anthropic-ai/shadcn-mcp-server"]
     }
   }
