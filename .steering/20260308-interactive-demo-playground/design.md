@@ -63,17 +63,31 @@
 
 ## ディレクトリ設計
 
-### デモファイルの配置
+### 2層構造: コンポーネントショーケース + 組み合わせデモ
+
+プレイグラウンドは以下の2層で構成する：
+
+1. **コンポーネントショーケース（`/playground/components/`）**: ライブラリのベースコンポーネント（Button, Card, Input 等）を個別にプレビュー・操作できるページ。各コンポーネントのバリエーション（variant, size 等）をサンプルデータ付きで表示する。
+2. **組み合わせデモ（`/playground/demos/`）**: ユーザーが Claude Code / Cursor でリクエストした、複数コンポーネントを組み合わせた実践的なデモ。
 
 ```
 src/app/playground/
-├── page.tsx                          # デモ一覧ページ
+├── page.tsx                          # プレイグラウンドトップ（ショーケース + デモ一覧）
 ├── layout.tsx                        # プレイグラウンド用レイアウト
 ├── _components/
-│   ├── DemoCard.tsx                  # デモ一覧のカードコンポーネント
+│   ├── DemoCard.tsx                  # 一覧のカードコンポーネント
 │   ├── ComponentBrowser.tsx          # コンポーネント参照パネル
 │   └── types.ts                      # プレイグラウンド固有の型定義
-└── demos/
+├── components/                       # ★ ベースコンポーネントのショーケース
+│   ├── layout.tsx                    # ショーケース共通レイアウト
+│   ├── button/
+│   │   └── page.tsx                  # Button のバリエーション一覧
+│   ├── card/
+│   │   └── page.tsx                  # Card のバリエーション一覧
+│   ├── input/
+│   │   └── page.tsx                  # Input のバリエーション一覧
+│   └── ...                           # shadcn/ui コンポーネントごとに作成
+└── demos/                            # ★ ユーザーリクエストの組み合わせデモ
     ├── layout.tsx                    # デモ共通レイアウト（ヘッダー、戻るリンク等）
     ├── stat-cards/
     │   └── page.tsx                  # デモ: 統計カードダッシュボード
@@ -84,17 +98,81 @@ src/app/playground/
     └── ...                           # Claude Code / Cursor が自動生成
 ```
 
-### デモファイルの命名規則
+### 命名規則
 
 ```
-src/app/playground/demos/[slug]/page.tsx
+src/app/playground/components/[name]/page.tsx   # ベースコンポーネント
+src/app/playground/demos/[slug]/page.tsx        # 組み合わせデモ
 ```
 
-- `[slug]` は kebab-case（例: `stat-cards`, `login-form`, `sortable-list`）
-- Next.js App Router のファイルベースルーティングにより、自動的に `/playground/demos/[slug]` でアクセス可能
-- Claude Code / Cursor がデモを生成する際、適切な slug 名でディレクトリを作成する
+- `[name]` / `[slug]` は kebab-case（例: `button`, `stat-cards`, `login-form`）
+- Next.js App Router のファイルベースルーティングにより、自動的にルートが生成される
+  - `/playground/components/button` → Button ショーケース
+  - `/playground/demos/stat-cards` → 統計カードデモ
 
-### デモファイルのテンプレート
+### コンポーネントショーケースのテンプレート
+
+ベースコンポーネントのショーケースページの基本構造：
+
+```tsx
+// src/app/playground/components/button/page.tsx
+"use client";
+
+import { Button } from "@/components/ui/button";
+
+/**
+ * ショーケース: Button
+ *
+ * shadcn/ui Button コンポーネントの全バリエーションを表示。
+ * variant, size, disabled, asChild 等の props を確認できる。
+ */
+export default function ButtonShowcasePage() {
+  return (
+    <div className="space-y-8 p-6">
+      {/* Variants */}
+      <section>
+        <h2 className="text-lg font-semibold mb-4">Variants</h2>
+        <div className="flex flex-wrap gap-4">
+          <Button variant="default">Default</Button>
+          <Button variant="destructive">Destructive</Button>
+          <Button variant="outline">Outline</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="ghost">Ghost</Button>
+          <Button variant="link">Link</Button>
+        </div>
+      </section>
+
+      {/* Sizes */}
+      <section>
+        <h2 className="text-lg font-semibold mb-4">Sizes</h2>
+        <div className="flex flex-wrap items-center gap-4">
+          <Button size="lg">Large</Button>
+          <Button size="default">Default</Button>
+          <Button size="sm">Small</Button>
+          <Button size="icon">🔔</Button>
+        </div>
+      </section>
+
+      {/* States */}
+      <section>
+        <h2 className="text-lg font-semibold mb-4">States</h2>
+        <div className="flex flex-wrap gap-4">
+          <Button>Enabled</Button>
+          <Button disabled>Disabled</Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+```
+
+**ショーケースのルール**:
+- 1ページ = 1コンポーネントの全バリエーション
+- セクションごとに props のカテゴリで分類（Variants, Sizes, States 等）
+- 実際にクリック・ホバー等のインタラクションを試せる状態にする
+- `shadcn add` でコンポーネントを追加した際に、対応するショーケースページも作成する
+
+### 組み合わせデモのテンプレート
 
 Claude Code / Cursor がデモを生成する際の基本構造：
 
@@ -113,10 +191,12 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
  * 作成日: YYYY-MM-DD
  */
 export default function DemoPage() {
-  // サンプルデータ
+  // サンプルデータはファイル内にハードコード（DB 不要）
   const items = [
-    { id: "1", title: "項目1", value: 100 },
-    // ...
+    { id: "1", title: "売上", value: 12450, change: "+12.5%", icon: "💰" },
+    { id: "2", title: "ユーザー", value: 3240, change: "+8.1%", icon: "👤" },
+    { id: "3", title: "注文", value: 856, change: "-2.3%", icon: "📦" },
+    { id: "4", title: "レビュー", value: 4.8, change: "+0.3", icon: "⭐" },
   ];
 
   return (
@@ -127,42 +207,59 @@ export default function DemoPage() {
 }
 ```
 
-**ルール**:
+**デモのルール**:
 - `"use client"` ディレクティブを含める（状態管理・イベントハンドラが必要なため）
 - ライブラリコンポーネントは `@/components/ui/` や `@/components/[category]/` から import
-- サンプルデータはコンポーネント内にハードコード
 - `export default` で単一のページコンポーネントを返す
 - JSDoc でデモの説明、使用コンポーネント、作成日を記載
 
+### サンプルデータ（シードデータ）の方針
+
+- **ファイル内にハードコード**: すべてのサンプルデータはデモページの `page.tsx` ファイル内に直接定義する
+- **DB 不要**: 外部データソースやシードファイルは使用しない
+- **リアリティのあるデータ**: サンプルデータは実際の使用場面を想像しやすい値にする（「テスト1」「テスト2」ではなく、具体的な名称・数値を使用）
+- **型安全**: サンプルデータにも TypeScript の型を定義する
+- **自己完結**: 各デモページが単体で動作するよう、必要なデータをすべて内包する
+
 ## 画面設計
 
-### デモ一覧ページ（`/playground`）
+### プレイグラウンドトップページ（`/playground`）
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  UI Library Playground                                      │
-│  コンポーネントの組み合わせデモを確認できます                     │
+│  コンポーネントの動作確認とデモを確認できます                     │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
+│  ── コンポーネントショーケース ──                               │
+│  ライブラリのベースコンポーネントを個別に確認できます              │
+│                                                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ 📊 Stat      │  │ 🔐 Login     │  │ ↕️ Sortable   │      │
-│  │ Cards        │  │ Form         │  │ List         │      │
+│  │ Button       │  │ Card         │  │ Input        │      │
 │  │              │  │              │  │              │      │
-│  │ 統計カード    │  │ ログイン      │  │ 並べ替え      │      │
-│  │ ダッシュボード │  │ フォーム      │  │ リスト        │      │
-│  │              │  │              │  │              │      │
-│  │ 2026-03-08   │  │ 2026-03-08   │  │ 2026-03-08   │      │
+│  │ 6 variants   │  │ Header,      │  │ text, email  │      │
+│  │ 4 sizes      │  │ Content,     │  │ password,    │      │
+│  │              │  │ Footer       │  │ disabled     │      │
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
 │                                                             │
-│  ┌──────────────┐  ┌──────────────┐                        │
-│  │ 📋 Data      │  │ + 新しいデモ  │                        │
-│  │ Table        │  │              │                        │
-│  │              │  │ Claude Code  │                        │
-│  │ データ       │  │ で生成       │                        │
-│  │ テーブル      │  │              │                        │
-│  │              │  │              │                        │
-│  │ 2026-03-08   │  │              │                        │
-│  └──────────────┘  └──────────────┘                        │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ Table        │  │ Accordion    │  │ Badge        │      │
+│  │              │  │              │  │              │      │
+│  │ ソート、      │  │ 単一/複数     │  │ 5 variants   │      │
+│  │ ページネーション│  │ 開閉         │  │              │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│                                                             │
+│  ── 組み合わせデモ ──                                        │
+│  複数コンポーネントを組み合わせた実践的なデモ                     │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ 📊 Stat      │  │ 🔐 Login     │  │ + 新しいデモ  │      │
+│  │ Cards        │  │ Form         │  │              │      │
+│  │              │  │              │  │ Claude Code  │      │
+│  │ 統計カード    │  │ ログイン      │  │ で生成       │      │
+│  │ ダッシュボード │  │ フォーム      │  │              │      │
+│  │ 2026-03-08   │  │ 2026-03-08   │  │              │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
 │                                                             │
 ├─────────────────────────────────────────────────────────────┤
 │  コンポーネント参照（折りたたみ可能）                           │
@@ -170,13 +267,39 @@ export default function DemoPage() {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**一覧ページの機能**:
-- `src/app/playground/demos/` 配下のディレクトリを走査してデモ一覧を動的生成
-- 各デモカードにはデモ名（slug から生成 or JSDoc から取得）と作成日を表示
-- カードクリックで個別デモページに遷移
+**トップページの機能**:
+- **コンポーネントショーケース**: `src/app/playground/components/` 配下を走査してベースコンポーネント一覧を表示
+- **組み合わせデモ**: `src/app/playground/demos/` 配下を走査してデモ一覧を表示
+- カードクリックで各ページに遷移
 - 「新しいデモ」カードには Claude Code / Cursor での生成手順を案内
 
-### 個別デモページ（`/playground/demos/[slug]`）
+### コンポーネントショーケースページ（`/playground/components/[name]`）
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ← 一覧に戻る    Button                                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ── Variants ──                                             │
+│  [Default] [Destructive] [Outline] [Secondary] [Ghost] [Link]│
+│                                                             │
+│  ── Sizes ──                                                │
+│  [Large]  [Default]  [Small]  [🔔]                          │
+│                                                             │
+│  ── States ──                                               │
+│  [Enabled]  [Disabled]                                      │
+│                                                             │
+│  ── With Icons ──                                           │
+│  [📧 Login with Email]  [← Back]  [Next →]                  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+- 1ページ = 1コンポーネントの全バリエーション
+- 実際にクリック・ホバー・フォーカス等の操作を試せる
+- ホットリロードにより、`src/components/ui/` 内のコンポーネントを修正すると即座に反映
+
+### 組み合わせデモページ（`/playground/demos/[slug]`）
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -199,11 +322,13 @@ export default function DemoPage() {
 
 - デモコンポーネントがフルサイズで表示される
 - Next.js dev server のホットリロードにより、Claude Code / Cursor でファイルを修正するとリアルタイムで反映
-- 「一覧に戻る」リンクでデモ一覧ページに遷移
+- 「一覧に戻る」リンクでプレイグラウンドトップに遷移
 
-## デモ一覧の動的生成
+## 一覧の動的生成
 
 ### 方法: ファイルシステム走査（Server Component）
+
+コンポーネントショーケースと組み合わせデモの両方を、同じ走査ロジックで一覧化する。
 
 ```typescript
 // src/app/playground/page.tsx（Server Component）
@@ -211,43 +336,43 @@ export default function DemoPage() {
 import fs from "fs";
 import path from "path";
 
-interface DemoInfo {
+interface PlaygroundEntry {
   slug: string;
   title: string;
-  description?: string;
-  createdAt?: string;
+  type: "component" | "demo";
 }
 
-function getDemos(): DemoInfo[] {
-  const demosDir = path.join(process.cwd(), "src/app/playground/demos");
+function getEntries(dir: string, type: "component" | "demo"): PlaygroundEntry[] {
+  const fullPath = path.join(process.cwd(), dir);
 
-  if (!fs.existsSync(demosDir)) {
+  if (!fs.existsSync(fullPath)) {
     return [];
   }
 
-  const entries = fs.readdirSync(demosDir, { withFileTypes: true });
+  const entries = fs.readdirSync(fullPath, { withFileTypes: true });
 
   return entries
-    .filter((entry) => entry.isDirectory() && entry.name !== "_components")
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
     .filter((entry) => {
-      // page.tsx が存在するディレクトリのみ
-      const pagePath = path.join(demosDir, entry.name, "page.tsx");
+      const pagePath = path.join(fullPath, entry.name, "page.tsx");
       return fs.existsSync(pagePath);
     })
     .map((entry) => {
       const slug = entry.name;
-      // slug から表示名を生成（kebab-case → Title Case）
       const title = slug
         .split("-")
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ");
-
-      return { slug, title };
+      return { slug, title, type };
     });
 }
+
+// トップページで両方を取得
+const components = getEntries("src/app/playground/components", "component");
+const demos = getEntries("src/app/playground/demos", "demo");
 ```
 
-**設計判断**: Server Component の利点を活かし、ビルド時またはリクエスト時にファイルシステムを直接走査する。DB は不要。
+**設計判断**: Server Component の利点を活かし、ファイルシステムを直接走査する。DB は不要。
 
 ## コンポーネント参照パネル
 
@@ -310,13 +435,19 @@ const components: ComponentInfo[] = [
 
 ```
 src/app/playground/
-├── page.tsx                          # デモ一覧ページ（Server Component）
+├── page.tsx                          # トップページ（ショーケース + デモ一覧）
 ├── layout.tsx                        # プレイグラウンド用レイアウト
 ├── _components/
-│   ├── DemoCard.tsx                  # デモ一覧のカードコンポーネント
+│   ├── DemoCard.tsx                  # 一覧のカードコンポーネント
 │   ├── ComponentBrowser.tsx          # コンポーネント参照パネル
 │   └── types.ts                      # プレイグラウンド固有の型定義
-└── demos/
+├── components/                       # ベースコンポーネントショーケース
+│   ├── layout.tsx                    # ショーケース共通レイアウト
+│   ├── button/page.tsx
+│   ├── card/page.tsx
+│   ├── input/page.tsx
+│   └── ...
+└── demos/                            # 組み合わせデモ
     ├── layout.tsx                    # デモ共通レイアウト
     └── [slug]/
         └── page.tsx                  # 各デモ（Claude Code / Cursor が生成）
@@ -344,6 +475,44 @@ src/app/playground/
 | `DemoListDialog.tsx` | デモ一覧ページで代替 |
 | `.env.local` の `ANTHROPIC_API_KEY` | API 直接呼び出し不要 |
 | `.env.local` の `DATABASE_URL` | DB 不要 |
+
+## shadcn/ui MCP サーバーのセットアップ
+
+CLAUDE.md に記載されている MCP サーバー設定が未作成のため、プレイグラウンド構築の前提としてセットアップする。
+
+### 作成するファイル
+
+**`.mcp.json`（プロジェクトルート、Claude Code 用）**:
+
+```json
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/shadcn-mcp-server"]
+    }
+  }
+}
+```
+
+**`.cursor/mcp.json`（Cursor 用）**:
+
+```json
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/shadcn-mcp-server"]
+    }
+  }
+}
+```
+
+### MCP サーバーの活用タイミング
+
+- `shadcn add [component]` でベースコンポーネントを追加する前に、MCP で最新仕様を確認
+- ショーケースページを作成する際に、MCP でコンポーネントの props・バリエーションを取得
+- デモ生成時に、コンポーネントの正確な使い方を参照
 
 ## 追加パッケージ
 
