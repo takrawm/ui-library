@@ -362,24 +362,50 @@ Cursor Settings > MCP Servers から追加、もしくは `.cursor/mcp.json` に
 → get_block({ blockName: "dashboard-01" })
 ```
 
-## プレイグラウンドのデモ生成ワークフロー
+## ショーケース生成ワークフロー（2段階プロセス）
 
-プレイグラウンドの組み合わせデモは、Claude Code / Cursor で以下の手順で生成する。
+プレイグラウンドのショーケースは、Claude Code / Cursor で以下の2段階プロセスで生成する。
 
-### デモ生成手順
+### Step 1: コンポーネント設計
+
+UI のイメージ（説明やスクリーンショット）を元に、コンポーネント設計を AI に依頼する。
+プレイグラウンドの「コンポーネント設計」タブのテンプレートを使用。
+
+**出力フォーマット:**
+```
+## ページ概要
+- スラッグ: [kebab-case]
+- タイトル: [ページのタイトル]
+- 説明: [1-2文でページの内容を説明]
+
+## コンポーネント構成
+### [ComponentName] (配置先: src/components/[ComponentName]/ または ページ内定義)
+- 責務: [何を表示し、どんな操作を受け付けるか]
+- shadcn/ui ベース: [使用する shadcn/ui コンポーネント]
+- Props:
+  - [propName]: [型] - [説明]
+- 子コンポーネント: [あれば列挙、なければ「なし」]
+
+## コンポーネント関係図
+[親子関係とデータの流れ]
+
+## ファイル構成
+- src/components/ に作成するファイル一覧（再利用コンポーネント）
+- playground/showcase/[slug]/page.tsx に作成するファイル（ショーケースページ）
+```
+
+### Step 2: 実装
+
+設計結果に基づいて実装を AI に指示する。プレイグラウンドの「実装」タブのテンプレートを使用。
 
 1. **MCP で使用コンポーネントの最新仕様を確認する**
-   ```
-   → get_component({ componentName: "card" })
-   → get_component({ componentName: "button" })
-   ```
-
-2. **デモページを `playground/demos/[slug]/page.tsx` に作成する**
-   - ファイル名は kebab-case のスラッグ（例: `stat-cards`, `login-form`）
+2. **`src/components/[ComponentName]/` に再利用コンポーネントを作成する**（設計で指定された場合）
+3. **`playground/showcase/[slug]/page.tsx` にショーケースページを作成する**
+   - ファイル名は kebab-case のスラッグ
    - `"use client"` ディレクティブは状態管理・イベントハンドラが必要な場合のみ付与
-   - サンプルデータはファイル内にハードコード（DB やシードファイルは不要）
+   - サンプルデータはファイル内にハードコード
 
-3. **JSDoc コメントでメタデータを記載する**
+4. **JSDoc コメントでメタデータを記載する**
    ```tsx
    /**
     * デモ: [デモタイトル]
@@ -389,42 +415,36 @@ Cursor Settings > MCP Servers から追加、もしくは `.cursor/mcp.json` に
     */
    ```
 
-4. **Next.js ホットリロードで即座に確認する**
-   - `pnpm dev` 実行中であれば、ファイル保存後に `/playground/demos/[slug]` でプレビュー可能
+5. **Next.js ホットリロードで即座に確認する**
+   - `pnpm dev` 実行中であれば、ファイル保存後に `/playground/showcase/[slug]` でプレビュー可能
    - プレイグラウンドトップページ（`/playground`）にも自動的に表示される
 
-### デモの指示テンプレート
+### shadcn/ui コンポーネントレジストリの更新
+
+`src/app/playground/_components/shadcn-registry.ts` は shadcn/ui の全コンポーネント一覧を静的データとして保持するスナップショットファイル。shadcn/ui に新しいコンポーネントが追加された場合は、以下のプロンプトで更新する。
 
 ```
-以下のデモページを作成してください。
-
-スラッグ: [kebab-case のスラッグ]
-タイトル: [デモのタイトル]
-使用コンポーネント: [Button, Card, Input 等]
-説明: [1-2文でデモの内容を説明]
-
-レイアウト:
-- [UIのレイアウトを箇条書きで]
-
-インタラクション:
-- [ユーザー操作とその結果（あれば）]
+shadcn-registry.ts を最新化してください。
+MCP の list_components で最新のコンポーネント一覧を取得し、
+shadcn-registry.ts を更新してください。
 ```
+
+Claude Code / Cursor がこのプロンプトを受け取ると、以下を自動的に行う:
+1. MCP サーバーの `list_components` を実行して最新一覧を取得
+2. `shadcn-registry.ts` のデータを更新
+3. `src/components/ui/` の内容と照合して `installed` フラグを更新
 
 ## コンポーネント設計原則
 
-### 1. 分類体系
+### 1. ディレクトリ構成
 
-コンポーネントは以下のカテゴリに分類する。新しいコンポーネントを追加する際は、必ずいずれかに配置すること。
+コンポーネントは `src/components/` 直下にフラット配置する。カテゴリ別のサブディレクトリは使用しない。
 
 ```
 src/components/
-├── layouts/           # ページ全体の構造（サイドバー付きレイアウト、ダッシュボードシェルなど）
-├── navigation/        # ナビゲーション系（サイドバー、ブレッドクラム、タブなど）
-├── data-display/      # データ表示系（カード、テーブル、リスト、統計表示など）
-├── data-input/        # データ入力系（フォーム、フィルター、検索バーなど）
-├── feedback/          # フィードバック系（トースト、モーダル、プログレスバーなど）
-├── interactive/       # インタラクティブ系（ドラッグ&ドロップ、ソート可能リストなど）
-└── ui/                # shadcn/ui のベースコンポーネント（shadcn add で追加されるもの）
+├── ui/                    # shadcn/ui のベースコンポーネント（shadcn add で追加されるもの）
+├── ThreeColumnLayout/     # カスタムコンポーネント（フラット配置）
+└── [ComponentName]/       # 新しいコンポーネントもここに追加
 ```
 
 ### 2. コンポーネント構成ルール
@@ -434,9 +454,10 @@ src/components/
 #### 初期段階（現在）
 
 ```
-src/components/[category]/[ComponentName]/
+src/components/[ComponentName]/
 ├── [ComponentName].tsx          # メインのコンポーネント実装
 ├── [ComponentName].test.tsx     # テスト（基本的な描画テストとインタラクションテスト）
+├── index.ts                     # re-export
 └── types.ts                     # 型定義（props が複雑な場合）
 ```
 
@@ -446,10 +467,11 @@ src/components/[category]/[ComponentName]/
 #### Storybook 導入後（将来）
 
 ```
-src/components/[category]/[ComponentName]/
+src/components/[ComponentName]/
 ├── [ComponentName].tsx          # メインのコンポーネント実装
 ├── [ComponentName].stories.tsx  # 使用例・バリエーション（Storybook 形式）
 ├── [ComponentName].test.tsx     # テスト（基本的な描画テストとインタラクションテスト）
+├── index.ts                     # re-export
 ├── types.ts                     # 型定義（props が複雑な場合）
 └── README.md                    # このコンポーネントの設計意図・使い方・制約
 ```
@@ -495,7 +517,6 @@ src/components/[category]/[ComponentName]/
 ## コンポーネント要件
 
 **名前**: SortableAccordion
-**カテゴリ**: interactive
 **目的**: アコーディオンの項目をドラッグ&ドロップで並べ替え可能にする
 
 **構造**:
@@ -534,17 +555,19 @@ src/components/[category]/[ComponentName]/
 ### コミットメッセージ規約
 
 ```
-feat(category): ComponentName - 新規コンポーネント追加
-fix(category): ComponentName - バグ修正
-refactor(category): ComponentName - リファクタリング
-test(category): ComponentName - テスト追加・修正
+feat(components): ComponentName - 新規コンポーネント追加
+fix(components): ComponentName - バグ修正
+refactor(components): ComponentName - リファクタリング
+test(components): ComponentName - テスト追加・修正
+feat(playground): ショーケース追加・プレイグラウンド機能更新
 docs: ドキュメント更新
 chore: ビルド設定、依存関係の更新
 ```
 
 **例：**
-- `feat(interactive): SortableAccordion - ドラッグ&ドロップ対応アコーディオンを追加`
-- `fix(data-display): StatCard - レスポンシブ表示の崩れを修正`
+- `feat(components): SortableAccordion - ドラッグ&ドロップ対応アコーディオンを追加`
+- `fix(components): StatCard - レスポンシブ表示の崩れを修正`
+- `feat(playground): login-form ショーケースを追加`
 - `docs: CATALOG.md を更新`
 - `chore: @dnd-kit/core を v7.0.0 に更新`
 
@@ -568,19 +591,13 @@ ui-library/
 │   │   ├── layout.tsx           # ルートレイアウト
 │   │   ├── page.tsx             # / → /playground へリダイレクト
 │   │   └── playground/
-│   │       ├── page.tsx         # プレイグラウンドトップ（ショーケース + デモ一覧）
+│   │       ├── page.tsx         # プレイグラウンドトップ（ショーケース一覧）
 │   │       ├── layout.tsx       # プレイグラウンド用レイアウト
 │   │       ├── _components/     # プレイグラウンド固有コンポーネント
-│   │       ├── components/      # ベースコンポーネントのショーケース
-│   │       └── demos/           # 組み合わせデモ（Claude Code / Cursor で生成）
+│   │       └── showcase/        # ショーケース（Claude Code / Cursor で生成）
 │   ├── components/
 │   │   ├── ui/                  # shadcn/ui ベースコンポーネント（自動生成）
-│   │   ├── layouts/
-│   │   ├── navigation/
-│   │   ├── data-display/
-│   │   ├── data-input/
-│   │   ├── feedback/
-│   │   └── interactive/
+│   │   └── ThreeColumnLayout/   # カスタムコンポーネント（フラット配置）
 │   └── lib/
 │       └── utils.ts             # cn() などのユーティリティ
 ├── stories/                     # Storybook 設定（将来導入予定）
@@ -672,7 +689,6 @@ import type { SortableCardProps } from "./types";
 以下の要件でコンポーネントを作成してください。
 
 名前: [コンポーネント名]
-カテゴリ: [layouts | navigation | data-display | data-input | feedback | interactive]
 目的: [1文で何をするコンポーネントか]
 
 構造:
@@ -719,7 +735,7 @@ shadcn/ui ベース: [使うべき shadcn/ui コンポーネント]
 ### 「shadcn/ui にあるコンポーネントをそのまま使うか、カスタムで作るか」
 
 - shadcn/ui にあるものは、まず MCP で最新仕様を確認し、そのまま使う
-- カスタムが必要な場合は、shadcn/ui のコンポーネントを `ui/` にコピーした上で、ラッパーコンポーネントを `interactive/` や `data-display/` に作る
+- カスタムが必要な場合は、shadcn/ui のコンポーネントを `ui/` にコピーした上で、ラッパーコンポーネントを `src/components/[ComponentName]/` に作る
 - `ui/` 内のファイルは直接編集しない（shadcn CLI でのアップデートと衝突するため）
 
 ### 「shadcn/ui コンポーネントを更新するとき」

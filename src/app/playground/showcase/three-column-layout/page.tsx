@@ -9,8 +9,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import { ThreeColumnLayout } from "@/components/layouts/ThreeColumnLayout";
-import type { ListItem, NavItem } from "@/components/layouts/ThreeColumnLayout";
+import { ThreeColumnLayout } from "@/components/ThreeColumnLayout";
+import type { ListItem, NavItem } from "@/components/ThreeColumnLayout";
 
 const navItems: NavItem[] = [
   { id: "inbox", label: "受信", icon: <Mail className="h-5 w-5" />, active: true, badge: 3 },

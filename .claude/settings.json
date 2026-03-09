@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export PATH=\"$HOME/.asdf/shims:$HOME/.asdf/bin:/usr/bin:/bin:$PATH\")",
+      "Read(//home/tmiyahara/dev/ui-library/$HOME/.asdf/**)",
+      "Bash(/home/tmiyahara/.asdf/shims/npx -y corepack enable)",
+      "Bash(/home/tmiyahara/.asdf/shims/corepack pnpm build)",
+      "Bash(/home/tmiyahara/.asdf/shims/corepack pnpm lint)",
+      "Bash(/home/tmiyahara/.asdf/shims/npm exec -- pnpm build)",
+      "Bash(/home/tmiyahara/.asdf/shims/npm exec -- pnpm lint)"
+    ],
+    "additionalDirectories": [
+      "/home/tmiyahara/dev/ui-library/.steering"
+    ]
+  }
+}
